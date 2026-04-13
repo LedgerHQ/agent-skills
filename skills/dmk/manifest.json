@@ -1,0 +1,34 @@
+{
+  "name": "dmk",
+  "displayName": "Ledger Device Management Kit (DMK)",
+  "description": "Skills for integrating the Ledger DMK — the TypeScript SDK for communicating with Ledger hardware wallets.",
+  "version": "1.0.0",
+  "sdkPackage": "@ledgerhq/device-management-kit",
+  "skills": [
+    {
+      "name": "dmk-intent-vocabulary",
+      "description": "Maps natural language to DMK API methods"
+    },
+    {
+      "name": "dmk-implementation",
+      "description": "5-step execution process with HITL gates and error classification",
+      "referenceFiles": [
+        "dmk-sdk-reference.md",
+        "dmk-code-patterns.md",
+        "dmk-platform-patterns.md"
+      ]
+    },
+    {
+      "name": "dmk-business-logic",
+      "description": "Domain concepts: Clear Signing, Secure Channel, sessions, transports"
+    }
+  ],
+  "concatenationOrder": [
+    "dmk-intent-vocabulary/SKILL.md",
+    "dmk-business-logic/SKILL.md",
+    "dmk-implementation/SKILL.md",
+    "dmk-implementation/dmk-sdk-reference.md",
+    "dmk-implementation/dmk-code-patterns.md",
+    "dmk-implementation/dmk-platform-patterns.md"
+  ]
+}

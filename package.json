@@ -1,0 +1,32 @@
+{
+  "name": "@ledgerhq/developer-skills",
+  "version": "1.0.0",
+  "description": "AI coding skills for Ledger developer tools — install into any IDE",
+  "type": "module",
+  "bin": {
+    "developer-skills": "./bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "skills/"
+  ],
+  "keywords": [
+    "ledger",
+    "dmk",
+    "device-management-kit",
+    "ai-skills",
+    "cursor",
+    "claude",
+    "copilot",
+    "coding-assistant"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LedgerHQ/developer-ai-skills"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
