@@ -1,21 +1,15 @@
-# DMK Business Logic & Concepts
-
-## Name & Trigger
-
-**Name:** DMK Business Logic & Concepts
-
-**Trigger:** Invoke when a developer asks:
-- "What is X?" — where X is a DMK concept (Clear Signing, Secure Channel, BOLOS, session, transport, derivation path, genuine check, etc.)
-- "Why does X work this way?" — design rationale behind an API decision
-- "What's the difference between X and Y?" — e.g. Device Actions vs Commands, Clear Signing vs Blind Signing
-
-Also loaded as a connector by `dmk-implementation/SKILL.md` when a term or concept needs clarification during implementation.
-
+---
+name: dmk-business-logic
+description: >-
+  Explain the design rationale and domain concepts behind the Ledger Device
+  Management Kit (DMK) API, including Clear Signing, Secure Channel, BOLOS,
+  Device Actions vs Commands, sessions, transports, derivation paths, and
+  Genuine Check. Use when a developer asks "what is X?" about a DMK concept, "why does X work this way?" about an API design decision, or "what's the difference between X and Y?" for DMK components.
 ---
 
-## Goal
+# DMK Business Logic & Concepts
 
-Explain the *why* behind DMK API design decisions so developers understand the domain model, security constraints, and trade-offs — not just how to call the API.
+This skill explains the *why* behind DMK API design decisions — domain model, security constraints, and trade-offs — so developers understand the reasoning, not just the calls. It is also loaded as a connector by `dmk-implementation/SKILL.md` when a term or concept needs clarification during implementation.
 
 ---
 
@@ -83,8 +77,6 @@ A Secure Channel is an encrypted, authenticated connection between the Ledger de
 ### Practical implications
 
 - **Requires internet.** Secure channel operations fail offline — there is no local fallback.
-- **`AllowSecureConnection` is prompted once per device reboot.** Subsequent secure channel operations in the same session skip the prompt.
-- **App names must match exactly.** `InstallAppDeviceAction` and `UninstallAppDeviceAction` use the app name as it appears in the Ledger app catalog (same as Ledger Live). A typo or casing difference causes a silent failure.
 
 ---
 
@@ -238,18 +230,8 @@ It returns `output.isGenuine: boolean`.
 
 ---
 
-## Ledger Wallet / Ledger Live — Same Product, New Name
+## Ledger Wallet / Ledger Live
 
-**Ledger Live is the previous name for Ledger Wallet.** They refer to the same desktop and mobile application. Documentation, skill files, and SDK references may use either name — treat them as identical.
+Ledger Live is the previous name for Ledger Wallet — they refer to the same desktop and mobile application. Documentation, skill files, and SDK references may use either name; treat them as identical.
 
----
-
-## Ledger Wallet App Name Compatibility
-
-App names used in `InstallAppDeviceAction`, `UninstallAppDeviceAction`, and `OpenAppDeviceAction` must match exactly what Ledger Wallet (formerly Ledger Live) uses. These names come from Ledger's app catalog served by the Manager API.
-
-If an app name is wrong:
-- `InstallAppDeviceAction`: silent failure or "unknown application" error
-- `OpenAppDeviceAction`: "unknown application name" (`0x670a` or `0x6807`)
-
-Use the chain routing table in `../dmk-implementation/dmk-sdk-reference.md` as the canonical source. For chains not listed, check the Ledger app catalog or the Ledger Wallet source.
+App names used in device actions (`OpenAppDeviceAction`, `InstallAppDeviceAction`, `UninstallAppDeviceAction`) must match exactly what the Ledger app catalog uses — the same names shown in Ledger Wallet. A typo or casing difference causes a silent failure or a cryptic error with no indication of what went wrong.

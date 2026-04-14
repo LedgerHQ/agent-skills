@@ -320,6 +320,18 @@ function runAction<T>(action: { observable: any; cancel: () => void }): Promise<
   });
 }
 
+let activeSessionId: string | undefined;
+
+async function cleanup() {
+  if (activeSessionId) {
+    await dmk.disconnect({ sessionId: activeSessionId });
+  }
+  process.exit(0);
+}
+
+process.on("SIGINT", cleanup);
+process.on("SIGTERM", cleanup);
+
 async function main() {
   // 1. Wait for a device to be available
   process.stderr.write("⏳ Waiting for Ledger device…\n");
@@ -330,6 +342,7 @@ async function main() {
     ),
   );
   const sessionId = await dmk.connect({ device: devices[0]! });
+  activeSessionId = sessionId;
   process.stderr.write("✅ Connected.\n");
 
   // 2. Wait for unlock if needed
@@ -358,12 +371,9 @@ async function main() {
 
   // 4. Disconnect and clean up
   await dmk.disconnect({ sessionId });
+  activeSessionId = undefined;
   process.stderr.write("✅ Disconnected.\n");
 }
-
-// Clean up on exit
-process.on("SIGINT", async () => { process.exit(0); });
-process.on("SIGTERM", async () => { process.exit(0); });
 
 main().catch((err) => {
   process.stderr.write(`❌ ${(err as Error).message ?? err}\n`);

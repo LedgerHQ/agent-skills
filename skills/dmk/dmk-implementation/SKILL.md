@@ -1,22 +1,13 @@
-# DMK Signing Flow
-
-## Name & Trigger
-
-**Name:** DMK Signing Flow
-
-**Trigger:** Invoke when a developer needs to:
-- Implement a signing operation (transaction, message, typed data) using a Ledger device
-- Derive or retrieve an address from a Ledger device
-- Send any command to a Ledger device
-- Perform device management operations (genuine check, app install/uninstall, list installed apps)
-
-If the request is phrased informally or the intent is ambiguous → load the `dmk-intent-vocabulary` skill first.
-
+---
+name: dmk-implementation
+description: >-
+  Execute Ledger Device Management Kit (DMK) signing operations safely:
+  initialize the SDK, establish a device session, verify device state, open the correct chain app, perform signing or device management operations, and return the result. Use when a developer needs to implement a signing operation (transaction, message, typed data), derive or retrieve an address from a Ledger device, send any command to a Ledger device, or perform device management operations such as genuine check, app install, or app uninstall.
 ---
 
-## Goal
+# DMK Signing Flow
 
-Execute Ledger hardware signing operations safely: establish a device session, verify state, open the correct chain app, perform the operation, and return the result. Every step is a gate — none are optional.
+This skill walks through every gate required to execute a Ledger hardware operation safely — from SDK init and device session, through state and app checks, to signing or device management — and returns the result. Every step is a gate; none are optional. If the request is phrased informally or the intent is ambiguous, load the `dmk-intent-vocabulary` skill first.
 
 ---
 

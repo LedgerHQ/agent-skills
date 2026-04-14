@@ -58,6 +58,14 @@ DMK-skills-vFinal/
 | Error classification, rejection handling | `skills/dmk-implementation/dmk-code-patterns.md` |
 | Clear Signing, Secure Channel concepts | `skills/dmk-business-logic/SKILL.md` |
 
+
+## Version note
+
+This skill set is v1. The DMK is actively evolving: package versions, method signatures, and observable states may change between releases Verify against your installed package types before shipping.
+                                                                 
+Using this skill accelerates implementation but does not replace your judgment. You own your app's security model, error handling, and UX. The skill provides patterns, you decide what's appropriate for your context.   
+
+
 ## Legal notice
 
 The Device Management Kit (DMK) is made available under an open source license and is free to use for development, testing, and integration purposes.

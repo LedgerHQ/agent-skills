@@ -72,3 +72,7 @@ cp -r skills/dmk/* .cursor/skills/
 # Claude Code
 cp -r skills/dmk/* .claude/skills/
 ```
+
+## Disclaimer
+
+These skills accelerate implementation but do not replace developer judgment. You own your application's security model, error handling, and user experience. Skills provide patterns grounded in official documentation and source code, you are responsible for verifying they are appropriate for your context and for keeping dependencies up to date.

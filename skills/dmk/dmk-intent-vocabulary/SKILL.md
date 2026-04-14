@@ -1,27 +1,22 @@
+---
+name: dmk-intent-vocabulary
+description: >-
+  Map developer intent and natural language to the correct Ledger Device
+  Management Kit (DMK) components, operations, and API methods. Use when a
+  developer's request is phrased informally, incompletely, or in terms of
+  outcomes rather than API methods, when the intent is ambiguous and needs
+  mapping to a specific DMK component or operation, or when a developer asks "how do I...", "what's the difference between...", or describes a symptom rather than an API.
+---
+
 # DMK Intent Vocabulary
 
-## Name & Trigger
-
-**Name:** DMK Intent Vocabulary
-
-**Trigger:** Invoke when:
-- A developer's request is phrased informally, incompletely, or in terms of outcomes rather than API methods
-- The intent is ambiguous and needs mapping to a specific DMK component or operation
-- A developer asks "how do I…", "what's the difference between…", or describes a symptom rather than an API
-
-Also loaded as a connector by `dmk-implementation/SKILL.md` when intent is unclear before execution.
+This skill translates informal developer requests into the correct DMK components and operations, so the right API is identified before any implementation begins. It is also loaded as a connector by `dmk-implementation/SKILL.md` when intent is unclear before execution.
 
 ---
 
 ## Conventions
 
 **Derivation paths are developer-set constants — never user input, never inferred by the agent.** They must appear as literals in the application code (e.g. `"44'/501'/0'/0'"`). If a derivation path is missing from the calling context, stop and ask the developer — do not substitute, default, or guess one. An incorrect path produces a valid-looking result from a different key with no runtime error.
-
----
-
-## Goal
-
-Map developer intent and natural language to the correct DMK components and operations, so the right skill or API is identified before any implementation begins.
 
 ---
 
