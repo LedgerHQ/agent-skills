@@ -5,7 +5,7 @@ description: "Explain the design rationale and domain concepts behind the Ledger
 
 # DMK Business Logic & Concepts
 
-This skill explains the *why* behind DMK API design decisions — domain model, security constraints, and trade-offs — so developers understand the reasoning, not just the calls. It is also loaded as a connector by `dmk-implementation/SKILL.md` when a term or concept needs clarification during implementation.
+This skill explains the *why* behind DMK API design decisions — domain model, security constraints, and trade-offs — so developers understand the reasoning, not just the calls. It is also loaded as a connector by `ledger-dmk-implementation/SKILL.md` when a term or concept needs clarification during implementation.
 
 ---
 

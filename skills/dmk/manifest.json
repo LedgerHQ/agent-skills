@@ -10,7 +10,7 @@
       "description": "Maps natural language to DMK API methods"
     },
     {
-      "name": "dmk-implementation",
+      "name": "ledger-dmk-implementation",
       "description": "5-step execution process with HITL gates and error classification",
       "referenceFiles": [
         "dmk-sdk-reference.md",
@@ -26,9 +26,9 @@
   "concatenationOrder": [
     "dmk-intent-vocabulary/SKILL.md",
     "dmk-business-logic/SKILL.md",
-    "dmk-implementation/SKILL.md",
-    "dmk-implementation/dmk-sdk-reference.md",
-    "dmk-implementation/dmk-code-patterns.md",
-    "dmk-implementation/dmk-platform-patterns.md"
+    "ledger-dmk-implementation/SKILL.md",
+    "ledger-dmk-implementation/dmk-sdk-reference.md",
+    "ledger-dmk-implementation/dmk-code-patterns.md",
+    "ledger-dmk-implementation/dmk-platform-patterns.md"
   ]
 }

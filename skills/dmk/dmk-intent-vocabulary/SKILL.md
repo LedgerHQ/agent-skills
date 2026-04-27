@@ -5,7 +5,7 @@ description: "Map developer intent and natural language to the correct Ledger De
 
 # DMK Intent Vocabulary
 
-This skill translates informal developer requests into the correct DMK components and operations, so the right API is identified before any implementation begins. It is also loaded as a connector by `dmk-implementation/SKILL.md` when intent is unclear before execution.
+This skill translates informal developer requests into the correct DMK components and operations, so the right API is identified before any implementation begins. It is also loaded as a connector by `ledger-dmk-implementation/SKILL.md` when intent is unclear before execution.
 
 ---
 
@@ -159,7 +159,7 @@ This skill translates informal developer requests into the correct DMK component
 
 **Note:** Most commands reject if the device is locked — check `DeviceSessionState` first. Status word errors (`!= 0x9000`) surface via command parse logic. User rejection surfaces as `DeviceActionStatus.Error`. USB permission denied is a browser security constraint — device access must be triggered from a user gesture.
 
-→ For full error classification and ABORT/ESCALATE routing, load `dmk-implementation/SKILL.md`.
+→ For full error classification and ABORT/ESCALATE routing, load `ledger-dmk-implementation/SKILL.md`.
 
 ---
 
@@ -193,4 +193,4 @@ This skill translates informal developer requests into the correct DMK component
 
 **Note:** Install emits progress (0–100) in `intermediateValue.progress`. App name must match exactly what Ledger Live uses. Requires secure channel.
 
-→ For secure channel code patterns, load `dmk-implementation/SKILL.md`.
+→ For secure channel code patterns, load `ledger-dmk-implementation/SKILL.md`.
