@@ -57,11 +57,11 @@ Your App
 
 ---
 
-## Verified Package Versions
+## Compatible Package Versions
 
-API signatures in this skill were verified against:
+The code patterns and API signatures in this skill are known to work with the following package versions:
 
-| Package | npm name | Verified version |
+| Package | npm name | Known-working version |
 |---|---|---|
 | Device Management Kit | `@ledgerhq/device-management-kit` | `1.2.0` |
 | WebHID Transport | `@ledgerhq/device-transport-kit-web-hid` | `1.2.3` |
@@ -69,7 +69,7 @@ API signatures in this skill were verified against:
 | Bitcoin Signer Kit | `@ledgerhq/device-signer-kit-bitcoin` | `1.3.0` |
 | Solana Signer Kit | `@ledgerhq/device-signer-kit-solana` | `1.7.1` |
 
-Re-verify if the version in `package.json` differs, or if a runtime error suggests a signature mismatch. Always use npm type definitions as the authoritative reference — not the GitHub source.
+If your `package.json` lists different versions, or if you hit a runtime error that looks like a signature mismatch, re-check the API against the installed package. Always use the npm type definitions as the source of truth — not the GitHub source.
 
 Import the transport identifier from the package, never hardcode the string:
 ```typescript

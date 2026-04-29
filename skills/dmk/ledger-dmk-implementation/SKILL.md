@@ -13,7 +13,7 @@ This skill walks through every gate required to execute a Ledger hardware operat
 
 **Sibling skills:**
 - `dmk-intent-vocabulary` — intent recognition and API vocabulary. Use when the request is ambiguous.
-- `dmk-business-logic` — conceptual reference: Clear Signing, Secure Channel, Device Actions vs Commands, sessions, transports, derivation paths, BOLOS, Genuine Check. Load when a developer asks "what is X?" or needs to understand the *why* behind an API decision.
+- `dmk-business-logic` — conceptual reference: Clear Signing, Secure Channel, Device Actions vs Commands, sessions, transports, derivation paths, Ledger OS, Genuine Check. Load when a developer asks "what is X?" or needs to understand the *why* behind an API decision.
 
 **Reference files:**
 - `dmk-sdk-reference.md` — package versions, concept map, chain routing, derivation path sources. Load at Step 1 (version check) and Step 5 (chain routing and signer selection).

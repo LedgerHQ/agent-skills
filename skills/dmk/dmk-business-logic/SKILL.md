@@ -1,6 +1,6 @@
 ---
 name: dmk-business-logic
-description: "Explain the design rationale and domain concepts behind the Ledger Device Management Kit (DMK) API, including Clear Signing, Secure Channel, BOLOS, Device Actions vs Commands, sessions, transports, derivation paths, and Genuine Check. Use when a developer asks 'what is X?' about a DMK concept, 'why does X work this way?' about an API design decision, or 'what's the difference between X and Y?' for DMK components."
+description: "Explain the design rationale and domain concepts behind the Ledger Device Management Kit (DMK) API, including Clear Signing, Secure Channel, Ledger OS (BOLOS), Device Actions vs Commands, sessions, transports, derivation paths, and Genuine Check. Use when a developer asks 'what is X?' about a DMK concept, 'why does X work this way?' about an API design decision, or 'what's the difference between X and Y?' for DMK components."
 ---
 
 # DMK Business Logic & Concepts
@@ -201,7 +201,7 @@ For unlisted chains: SLIP-0044 defines coin types (`github.com/satoshilabs/slips
 
 ## BOLOS
 
-BOLOS (Blockchain Open Ledger Operating System) is the name of the Ledger device's operating system. When no app is open and the device is at the home screen (dashboard), `state.currentApp.name` returns `"BOLOS"`.
+BOLOS (Blockchain Open Ledger Operating System), now known as Ledger OS, is Ledger device's operating system. When no app is open and the device is at the home screen (dashboard), `state.currentApp.name` returns `"BOLOS"`.
 
 This is how you detect that no app is open:
 
