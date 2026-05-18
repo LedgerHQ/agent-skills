@@ -9,11 +9,15 @@ USB-based CLI for Ledger wallet flows. Networks: **bitcoin**, **ethereum**, **so
 
 Install globally with the user's preferred package manager — `npm i -g @ledgerhq/wallet-cli`, `pnpm add -g @ledgerhq/wallet-cli`, `yarn global add @ledgerhq/wallet-cli`, or `bun add -g @ledgerhq/wallet-cli`. Run: `wallet-cli <command> [flags]`.
 
+---
+
+> **Invocation:** Every CLI command starts with `wallet-cli` (post `npm i @ledgerhq/wallet-cli`). Never use `pnpm`, `--silent`, or `start`.
+
 > **Concepts & rationale:** for *why* a command behaves the way it does, or to surface a safety rule that this skill states tersely (genuine check, receive-address verification, sessions, sandbox, device contention), read [`references/business-logic.md`](references/business-logic.md).
 
 > **Session first:** When invoked without a specific task, **immediately run `session view`** — do not ask the user what to do first. Show the result, then ask what to do next. If labels exist, skip `account discover`.
 
-> **Sandbox:** `account discover`, `receive`, `send`, `genuine-check` **must** use `dangerouslyDisableSandbox: true` — sandbox blocks USB (causes `Timeout has occurred`). Other commands are fine in sandbox.
+> **Sandbox:** `account discover`, `receive`, `send`, `genuine-check`, `swap execute` **must** use `dangerouslyDisableSandbox: true` — sandbox blocks USB (causes a USB timeout error). Other commands are fine in sandbox.
 
 > **Device contention:** Never run two device commands in parallel — they fail with `[object Object]` or garbled APDU. Run sequentially.
 
@@ -55,7 +59,7 @@ If the user asks for any of the following, surface that wallet-cli does not supp
 
 ## Session & labels
 
-`account discover` persists accounts. Each gets a label: `<network>[-derivation][-env]-<n>` (e.g. `ethereum-1`, `bitcoin-native-1`, `ethereum-goerli-2`).
+`account discover` persists accounts. Each gets a label: `<network>[-derivation][-env]-<n>` (e.g. `ethereum-1`, `bitcoin-native-1`, `ethereum-sepolia-1`).
 
 All `--account` flags accept a session label.
 
@@ -150,6 +154,10 @@ Required: `--from`, `--to`, `--amount`, and both sides covered by the address fl
 ### swap execute
 **Currencies:** `--from` / `-f` and `--to` / `-t` are Ledger **currency IDs** (same as `swap quote`). They must match the asset of the source `--account` and of `--to-account` respectively
 
+**Providers:** Valid `--provider` values are `changelly`, `changelly_v2`, `cic`, `cic_v2`, `exodus`, `nearintents`, `swapsxyz`. Use the provider id shown on the quote line you pick from `swap quote`.
+
+**Fee strategy:** `--fee-strategy` accepts `slow`, `medium` (default), or `fast`.
+
 ```bash
 wallet-cli swap execute --from ethereum --to bitcoin --account ethereum-1 --to-account bitcoin-native-1 --provider changelly --amount 0.1
 wallet-cli swap execute -f ethereum -t bitcoin --account ethereum-1 --to-account bitcoin-native-1 --provider changelly --amount 0.1 --fee-strategy fast
@@ -172,10 +180,10 @@ Required flags: `--swap-id`, `--provider`
 | ----- | ----- | --- |
 | `Amount must include a ticker` | `--amount` missing ticker | **Ask the user which asset they mean** — do not guess. Then pass the ticker inline, e.g. `--amount '0.5 ETH'`. |
 | `Ticker UNKN not found in account` | ticker not in account balances | Run `balances <label>` and show the user the tickers held by this account. **Ask the user which ticker to use, or whether they meant a different account — do not silently substitute another ticker.** |
-| `UnknownDeviceExchangeError` | device not connected or wrong app open | Re-run the command — the CLI will request the matching app (Bitcoin for `bitcoin-*`, Ethereum for `ethereum-*`, Solana for `solana-*`) and the user confirms the launch on the device. |
 | `[✖] Wrong app. Open Ledger dashboard.` (exit code 4) | `genuine-check` invoked while a currency app is open. Unlike other device commands, `genuine-check` targets the dashboard and has no auto-launch path. | Ask the user to exit the foreground app on the device (short-press both buttons on the app's main screen until `Quit` shows, then confirm), then re-run `genuine-check`. Other device commands (`account discover`, `receive`, `send`, `swap execute`) don't hit this — they auto-prompt the correct app launch. |
-| `Transaction Cancelled: Rejected on device` | user rejected on device | The rejection was deliberate. **Ask the user whether to retry or abort** — do not auto-retry. If they retry, have them review amount, recipient, and fees on the device screen before approving. |
-| `Timeout has occurred` | sandbox blocking USB | Surface to the user that the command needs `dangerouslyDisableSandbox: true` and **ask for confirmation before re-running with the bypass**. The bypass is expected for device commands (`account discover`, `receive`, `send`, `genuine-check`, `swap execute`); if this error fires on any other command, investigate before bypassing rather than disabling the sandbox by reflex. |
+| `[✖] Rejected on device. No action taken.` | user rejected a sign request on device | The rejection was deliberate. **Ask the user whether to retry or abort** — do not auto-retry. If they retry, have them review amount, recipient, and fees on the device screen before approving. |
+| `[✖] Rejected on device. App was not opened.` | user rejected the app-open prompt on device | Ask the user to confirm the app-open prompt on the device and re-run the command. |
+| `[✖] Timed out talking to the Ledger over USB. The device may be busy or locked. Retry the command.` | sandbox blocking USB, or device busy/locked | Surface to the user that the command needs `dangerouslyDisableSandbox: true` and **ask for confirmation before re-running with the bypass**. The bypass is expected for device commands (`account discover`, `receive`, `send`, `genuine-check`, `swap execute`); if this error fires on any other command, investigate before bypassing rather than disabling the sandbox by reflex. |
 | `[object Object]` or garbled APDU output | two device commands running in parallel (contention) | Run device-touching commands sequentially — never in parallel tool calls. |
-| `[⧖] Waiting: Ledger device not detected.` | device powered off or unplugged | Keep the command running — the CLI waits and resumes automatically once the device is detected. Ask the user to power on the device, unlock it, and connect via USB. |
+| `[✖] Ledger not detected. Plug in, unlock, retry.` (exit code 3) | device powered off or unplugged | Ask the user to power on the device, unlock it, and connect via USB, then re-run the command. |
 | `device-state … awaiting_approval … reason: unlock` (JSON stream) | device locked | Keep the command running — the CLI resumes automatically once unlocked. Ask the user to unlock the device with their PIN. |
