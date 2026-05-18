@@ -10,18 +10,23 @@ Where the portal explains how things work, these skills teach your coding assist
 
 The skills are grounded in the same source of truth as the portal documentation: source code, verified API signatures, and domain expertise from the team that builds the projects.
 
-**We're starting with the Device Management Kit (DMK)** — Ledger's TypeScript SDK for Ledger signers integration. More skill sets will follow as we expand coverage across the Ledger developer ecosystem.
+## Available skills
+
+| Skill | What it covers |
+|---|---|
+| **DMK** | Ledger's TypeScript SDK for Ledger signers integration — device sessions, signing, app management, Clear Signing, EIP-1193 |
+| **wallet-cli** | The USB-based CLI for Ledger signer flows — account discover, receive, balances, operations, send, swap, genuine-check |
 
 ## Quick start
 
-Copy the skill files directly from the `skills/` directory in this repository into your IDE's configuration:
+Install with `npx skills add` or copy the files directly:
 
 ```bash
-# Cursor
-cp -r skills/dmk/* .cursor/skills/
+# DMK skill set
+npx skills add ledgerhq/agent-skills -s ledger-dmk-implementation dmk-intent-vocabulary dmk-business-logic
 
-# Claude Code
-cp -r skills/dmk/* .claude/skills/
+# wallet-cli skill (install globally — recommended, works from any project or agent context)
+npx skills add -g LedgerHQ/developer-ai-skills -s wallet-cli-usage
 ```
 
 ## Legal Notice
