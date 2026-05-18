@@ -41,23 +41,6 @@ Map informal phrasings to commands. Account references use a session label (e.g.
 
 ---
 
-## Networks
-
-Mainnets are fully supported; testnets support only the read paths (`account discover`, `balances`). For network IDs, mainnet is the bare name (e.g. `ethereum`); testnets use `<network>:<env>` (e.g. `ethereum:sepolia`).
-
-| Network ID          | discover | balances | receive | send | operations | swap execute |
-| ------------------- | -------- | -------- | ------- | ---- | ---------- | ------------ |
-| `bitcoin`           | ✓        | ✓        | ✓       | ✓    | ✓          | ✓            |
-| `ethereum`          | ✓        | ✓        | ✓       | ✓    | ✓          | ✓            |
-| `solana`            | ✓        | ✓        | ✓       | ✓*   | ✓          | ✓            |
-| `ethereum:sepolia`  | ✓        | ✓        | —       | —    | —          | —            |
-| `bitcoin:testnet`   | ✓        | ✓        | —       | —    | —          | —            |
-| `solana:devnet`     | ✓        | ✓        | —       | —    | —          | —            |
-
-*Solana `--mode` is `send` only — no staking, no validators.
-
----
-
 ## Out of scope — say no, don't improvise
 
 If the user asks for any of the following, surface that wallet-cli does not support it yet rather than constructing a command:
