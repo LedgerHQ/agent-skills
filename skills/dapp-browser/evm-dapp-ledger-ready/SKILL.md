@@ -73,7 +73,7 @@ Do not install or suggest `@ledgerhq/iframe-provider` — that was the legacy et
 What happens when a user submits a transaction inside Ledger Wallet Discover:
 
 1. User opens the dApp in Ledger Wallet Discover.
-2. Ledger Wallet prompts the user to select an EVM account. Until selected, `eth_accounts` returns `[]`.
+2. Ledger Wallet prompts the user to select an EVM account. Until selected, the dApp is not loaded.
 3. `window.ethereum` is bound to the selected account and network.
 4. dApp calls `eth_sendTransaction` via `window.ethereum`.
 5. Ledger Wallet intercepts the call and renders transaction details in its UI.
