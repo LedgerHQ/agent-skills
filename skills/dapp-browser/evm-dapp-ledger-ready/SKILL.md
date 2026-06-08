@@ -21,20 +21,33 @@ The manifest controls how the dApp is listed (see `evm-dapp-manifest`). This ski
 
 ### a) Account selection
 
-Ledger Wallet never pre-populates the account. `eth_accounts` returns an **empty array** on load until the user explicitly selects an EVM account.
+In dApp Browser v3, **account selection happens before the dApp loads**. Ledger Wallet shows its native account picker; the webview is only opened after the user has selected an EVM account. `eth_accounts` returns the selected account immediately on page load, it is never empty when the dApp starts.
 
-- Call `eth_requestAccounts` on connect — this opens the account selection UI in Ledger Wallet.
-- Guard against `eth_accounts → []` explicitly in your connect logic. Do not rely on library defaults.
-- Design the initial state to handle the empty case gracefully (e.g. show a disabled "Connect" state, not a blank address or crash).
+- When `window.ethereum.isLedgerLive` is `true`, auto-connect on load. Do not show a manual "Connect Wallet" modal, the account is already available.
+- Call `eth_requestAccounts` (or read `eth_accounts`) once on init. Both resolve immediately with the pre-selected account.
+- Listen for the `accountsChanged` event. Ledger Wallet emits it when the user switches accounts without reloading the dApp, your UI must update to reflect the new account.
 
 ```js
-// ethers.js v6
+// ethers.js v6 — auto-connect when inside Ledger Wallet
 const provider = new BrowserProvider(window.ethereum);
-const accounts = await provider.send("eth_requestAccounts", []);
+
+if (window.ethereum.isLedgerLive) {
+  // Account is already selected; resolve immediately
+  const accounts = await provider.send("eth_requestAccounts", []);
+  // accounts[0] is the pre-selected address
+}
+
+// Handle account switching (user changes account in Ledger Wallet native UI)
+window.ethereum.on("accountsChanged", (accounts) => {
+  if (accounts.length > 0) {
+    // Update app state with the new account
+  }
+});
 ```
 
 **ESCALATE** if:
-- The dApp assumes `eth_accounts[0]` is available on page load without calling `eth_requestAccounts` first.
+- The dApp ignores `accountsChanged` events. When the user switches accounts inside Ledger Wallet, the dApp must update its state.
+- The dApp shows a manual "Connect" button and waits for the user to click it before reading `eth_accounts`, unnecessary friction in the Ledger Wallet environment.
 - The dApp stores the account address across sessions and reuses it without re-requesting on load.
 
 ### b) Transaction confirmation is blocking
@@ -43,10 +56,12 @@ Every `eth_sendTransaction` or `eth_signTypedData` call requires physical confir
 
 - Do not poll for the result.
 - Do not retry the call if it appears to hang.
+- Do not set a client-side timeout on the call, the promise resolves only when the user acts on the device, which can take as long as needed.
 - Disable the submit button and show a waiting state while confirmation is pending.
 
 **ESCALATE** if:
 - The dApp polls or retries during the confirmation window.
+- The dApp sets a timeout that rejects or cancels the pending signing call.
 - The dApp attempts to intercept or short-circuit the signing callback.
 - The integration infers consent from timing or prior session state.
 
@@ -72,9 +87,9 @@ Do not install or suggest `@ledgerhq/iframe-provider` — that was the legacy et
 
 What happens when a user submits a transaction inside Ledger Wallet Discover:
 
-1. User opens the dApp in Ledger Wallet Discover.
-2. Ledger Wallet prompts the user to select an EVM account. Until selected, the dApp is not loaded.
-3. `window.ethereum` is bound to the selected account and network.
+1. User selects an EVM account in Ledger Wallet's native account picker.
+2. Ledger Wallet opens the dApp in a webview. `window.ethereum` is already bound to the selected account and network. `eth_accounts` returns the account immediately.
+3. dApp auto-connects on load (detects `isLedgerLive`, calls `eth_requestAccounts`, gets the account without any user prompt).
 4. dApp calls `eth_sendTransaction` via `window.ethereum`.
 5. Ledger Wallet receives the call and renders transaction details in its UI.
 6. Ledger Wallet forwards the transaction to the device.
@@ -129,8 +144,9 @@ if (window.ethereum?.isLedgerLive) {
 
 Stop and surface to the developer when:
 
-- The dApp assumes an account is available on page load without calling `eth_requestAccounts`.
+- The dApp ignores `accountsChanged` events. Ledger Wallet emits this when the user switches accounts; the dApp must handle it.
+- The dApp blocks behind a manual "Connect" button when `isLedgerLive` is true — auto-connect instead.
 - The dApp polls or retries during the device confirmation window.
 - The dApp attempts to bypass or mock the physical confirmation step.
-- The dApp installs `@ledgerhq/iframe-provider` — remove it, use `window.ethereum` directly.
+- The dApp installs `@ledgerhq/iframe-provider`. Remove it, use `window.ethereum` directly.
 - The dApp hardcodes an account address from a previous session.

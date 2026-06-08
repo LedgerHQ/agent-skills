@@ -37,7 +37,7 @@ These apply to every dApp browser v3 manifest. They are not recommendations.
 
 Developers use exactly two `branch` values:
 - `"stable"` — production. Required for all submissions.
-- `"debug"` — local development only. Never visible to end users. Never ship.
+- `"debug"` — local development and testing. Visible to any user who has enabled Developer mode in Ledger Wallet settings. Do not ship to production with this value.
 
 `"experimental"` and `"soon"` are set by Ledger's internal team after review, not by the developer submitting the manifest. Do not suggest or instruct developers to use them.
 

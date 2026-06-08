@@ -13,7 +13,7 @@
 | `platforms` | `AppPlatform[]` | Target platforms. Valid values: `"ios"`, `"android"`, `"desktop"`. Use all three for maximum reach. |
 | `apiVersion` | `string` | Wallet API version supported. Use `"^2.0.0"` for all new integrations. |
 | `manifestVersion` | `string` | Manifest schema version. Use `"2"` for dApp browser v3. |
-| `branch` | `AppBranch` | Deployment branch. Developers use two values: `"stable"` for production, `"debug"` for local testing only. `"experimental"` and `"soon"` are set by Ledger's internal team — do not instruct developers to use them. |
+| `branch` | `AppBranch` | Deployment branch. Developers use two values: `"stable"` for production, `"debug"` for local testing (visible to users with Developer mode enabled — do not ship to production). `"experimental"` (visible with Developer mode) and `"soon"` (may appear as a disabled entry in Discover — verify with Ledger) are set by Ledger's internal team; do not instruct developers to use them. |
 | `permissions` | `string[]` | Must be `[]` for dApp browser v3. All EVM interactions go through the injected `window.ethereum` provider — the wallet-api permission system does not apply to this integration path. |
 | `domains` | `string[]` | Allowed domains for the webview. Use `["https://"]` for production. For local dev with `http://localhost`, use `["http://", "https://"]`. |
 | `categories` | `string[]` | Categorisation for Discover section (e.g. `["defi"]`, `["staking"]`, `["nft"]`). |
