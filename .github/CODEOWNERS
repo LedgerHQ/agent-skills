@@ -1,4 +1,3 @@
-* @LedgerHQ/team-product @cfranceschi-ledger
-* @LedgerHQ/team-cybersecurity 
-* @LedgerHQ/donjon 
-* @ledgerhq/live-devices
+# Repo-wide ownership. All owners for a path must share one line —
+# CODEOWNERS applies only the last matching pattern.
+* @LedgerHQ/team-cybersecurity @LedgerHQ/donjon
