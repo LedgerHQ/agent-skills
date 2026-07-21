@@ -6,12 +6,12 @@
 
 | Field | Type | Description |
 |---|---|---|
-| `id` | `string` | Unique identifier for the Live App. Kebab-case. Must not conflict with existing entries. |
+| `id` | `string` | Unique identifier for the manifest entry. Kebab-case. Must not conflict with existing entries. |
 | `name` | `string` | Display name shown in Ledger Wallet Discover. |
 | `url` | `string \| URL` | The URL Ledger Wallet loads in the webview. For dApp browser v3: your dApp's URL directly. |
 | `homepageUrl` | `string` | Public homepage of the dApp. Displayed in Ledger Wallet. |
 | `platforms` | `AppPlatform[]` | Target platforms. Valid values: `"ios"`, `"android"`, `"desktop"`. Use all three for maximum reach. |
-| `apiVersion` | `string` | Wallet API version supported. Use `"^2.0.0"` for all new integrations. |
+| `apiVersion` | `string` | Required by the manifest schema. Use `"^2.0.0"` for all new integrations. dApp browser v3 does not use the Wallet API (`permissions` is `[]`), but this field is still required. |
 | `manifestVersion` | `string` | Manifest schema version. Use `"2"` for dApp browser v3. |
 | `branch` | `AppBranch` | Deployment branch. Developers use two values: `"stable"` for production, `"debug"` for local testing (visible to users with Developer mode enabled — do not ship to production). `"experimental"` (visible with Developer mode) and `"soon"` (may appear as a disabled entry in Discover — verify with Ledger) are set by Ledger's internal team; do not instruct developers to use them. |
 | `permissions` | `string[]` | Must be `[]` for dApp browser v3. All EVM interactions go through the injected `window.ethereum` provider — the wallet-api permission system does not apply to this integration path. |
