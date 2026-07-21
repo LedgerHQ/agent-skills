@@ -115,21 +115,24 @@ Do not design the dApp UX around assuming tiered fee options will always appear.
 
 ## Optional: Ledger Wallet detection
 
-Not required for Discover listing. Useful to auto-connect without showing a "Connect Wallet" modal when running inside Ledger Wallet.
+Not required for Discover listing. Useful to auto-connect without showing a "Connect Wallet" modal when running inside Ledger Wallet. The two mechanisms are complementary, use both:
+
+- **`window.ethereum.isLedgerLive`**: the direct signal that you are running inside Ledger Wallet and should auto-connect. This is what gates the auto-connect behavior in the required section above.
+- **EIP-6963**: standards-based provider discovery. Ledger Wallet announces itself with `rdns: "com.ledger"`; use this if your stack already resolves providers via EIP-6963.
 
 ```js
-// EIP-6963 (preferred)
+// isLedgerLive: direct signal to auto-connect when inside Ledger Wallet
+if (window.ethereum?.isLedgerLive) {
+  // inside Ledger Wallet, skip the manual connect flow and auto-connect
+}
+
+// EIP-6963: standards-based provider discovery
 window.addEventListener("eip6963:announceProvider", (event) => {
   if (event.detail.info.rdns === "com.ledger") {
     // inside Ledger Wallet — skip manual connect flow
   }
 });
 window.dispatchEvent(new Event("eip6963:requestProvider"));
-
-// injected boolean (legacy fallback)
-if (window.ethereum?.isLedgerLive) {
-  // inside Ledger Wallet
-}
 ```
 
 ---
