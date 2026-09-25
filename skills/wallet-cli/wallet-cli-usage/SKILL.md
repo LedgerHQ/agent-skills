@@ -13,7 +13,7 @@ Install globally with a user-preferred package manager — `npm i -g @ledgerhq/w
 
 > **Session first:** When invoked without a specific task, **immediately run `session view`** — do not ask the user what to do first. Show the result, then ask what to do next. If labels exist, skip `account discover`.
 
-> **Sandbox:** `account discover`, `receive`, `send`, `genuine-check`, `swap execute`, `ring encrypt`, `ring decrypt`, `ring keys`, `ring destroy` **must** use `dangerouslyDisableSandbox: true` — the first group is blocked by USB restrictions; the ring commands are blocked by OS keychain access restrictions.
+> **Sandbox:** `account discover`, `receive` (without `--no-verify`), `send` (without `--dry-run`), `genuine-check`, `swap execute`, `earn deposit` (without `--dry-run`), `earn withdraw` (without `--dry-run`), `ring init` **must** use `dangerouslyDisableSandbox: true` — these open the device over USB (via the node-webusb DMK transport) and are blocked by USB restrictions. `ring encrypt`, `ring decrypt`, `ring destroy` never open the device but **also** need the bypass — they're blocked by OS keychain access restrictions instead. `ring keys` needs neither: it only reads the local session file, so it runs without the bypass.
 
 > **Device contention:** Never run two device commands in parallel — they fail with `[object Object]` or garbled APDU. Run sequentially.
 
@@ -74,7 +74,7 @@ All `--account` flags accept a session label (e.g. `ethereum-1`). Run `account d
 | `session view`       | No     | No           | No          | No      |
 | `session reset`      | No     | No           | No          | No      |
 | `account discover`   | Yes    | **Required** | No          | Yes     |
-| `receive`            | Yes    | **Required** | No          | No      |
+| `receive`            | Yes\*  | **Required** | No          | No      |
 | `send`               | Yes\*  | **Required** | No          | Yes     |
 | `genuine-check`      | Yes    | **Required** | No          | Yes     |
 | `balances`           | No     | No           | No          | Yes     |
@@ -91,10 +91,10 @@ All `--account` flags accept a session label (e.g. `ethereum-1`). Run `account d
 | `ring init`          | Yes    | **Required** | Required‡   | Yes     |
 | `ring encrypt`       | No     | **Required** | No          | Yes     |
 | `ring decrypt`       | No     | **Required** | No          | Yes     |
-| `ring keys`          | No     | **Required** | No          | No      |
+| `ring keys`          | No     | No           | No          | No      |
 | `ring destroy`       | No     | **Required** | Required‡‡  | Yes     |
 
-\*`send`, `earn deposit`, and `earn withdraw` with `--dry-run` need no device and no sandbox bypass.
+\*`receive` with `--no-verify`, `send` with `--dry-run`, and `earn deposit`/`earn withdraw` with `--dry-run` need no device and no sandbox bypass.
 
 †TTY: whether the command requires an interactive terminal for user input.
 
@@ -167,6 +167,22 @@ Ticker is **mandatory** in `--amount`. No `--token` flag — ticker drives asset
 **Bitcoin flags:** `--fee-per-byte <sats>`, `--rbf`
 
 **Solana flags:** `--mode send|stake.createAccount|stake.delegate|stake.undelegate|stake.withdraw`, `--validator <addr>`, `--stake-account <addr>`, `--memo <text>`
+
+**EVM flags:** `--data <hex>` — raw calldata for contract calls (0x-prefixed hex, even digit count). Use for contract interactions the CLI has no dedicated command for (e.g. WETH wrap/unwrap below). Omit for plain native/token transfers.
+
+#### Contract calls with --data (wrap/unwrap example)
+
+Canonical pattern: WETH wrap/unwrap. `deposit()` (wrap ETH → WETH, no args) is selector `0xd0e30db0`, sent with `--amount` as the ETH value. `withdraw(uint256)` (unwrap WETH → ETH, one `uint256` arg = amount in wei) is selector `0x2e1a7d4d` followed by the amount left-padded to 32 bytes.
+
+```bash
+# wrap 0.5 ETH into WETH
+wallet-cli send ethereum-1 --to <WETH_CONTRACT_ADDRESS> --amount '0.5 ETH' --data 0xd0e30db0
+
+# unwrap 0.5 WETH back to ETH (0.5 ETH = 500000000000000000 wei = 6f05b59d3b20000 hex, padded to 32 bytes)
+wallet-cli send ethereum-1 --to <WETH_CONTRACT_ADDRESS> --amount '0 ETH' --data 0x2e1a7d4d00000000000000000000000000000000000000000000000006f05b59d3b20000
+```
+
+Always run with `--dry-run` first to validate calldata before signing. The CLI cannot verify the semantic correctness of hand-supplied `--data` — the device screen is the last line of defense, so review the decoded call on-device before approving.
 
 ### swap quote
 
@@ -355,7 +371,7 @@ Get the Solana `--stake-account` address from `earn positions <account>` (its `s
 | `[✖] Wrong app. Open Ledger dashboard.` (exit code 4)                                                | `genuine-check` invoked while a currency app is open. Unlike other device commands, `genuine-check` targets the dashboard and has no auto-launch path. | Ask the user to exit the foreground app on the device (short-press both buttons on the app's main screen until `Quit` shows, then confirm), then re-run `genuine-check`. Other device commands (`account discover`, `receive`, `send`, `swap execute`) don't hit this — they auto-prompt the correct app launch.                                                                      |
 | `[✖] Rejected on device. No action taken.`                                                           | user rejected a sign request on device                                                                                                                 | The rejection was deliberate. **Ask the user whether to retry or abort** — do not auto-retry. If they retry, have them review amount, recipient, and fees on the device screen before approving.                                                                                                                                                                                      |
 | `[✖] Rejected on device. App was not opened.`                                                        | user rejected the app-open prompt on device                                                                                                            | Ask the user to confirm the app-open prompt on the device and re-run the command.                                                                                                                                                                                                                                                                                                     |
-| `[✖] Timed out talking to the Ledger over USB. The device may be busy or locked. Retry the command.` | sandbox blocking USB, or device busy/locked                                                                                                            | Surface to the user that the command needs `dangerouslyDisableSandbox: true` and **ask for confirmation before re-running with the bypass**. The bypass is expected for device commands (`account discover`, `receive`, `send`, `genuine-check`, `swap execute`); if this error fires on any other command, investigate before bypassing rather than disabling the sandbox by reflex. |
+| `[✖] Timed out talking to the Ledger over USB. The device may be busy or locked. Retry the command.` | sandbox blocking USB, or device busy/locked                                                                                                            | Surface to the user that the command needs `dangerouslyDisableSandbox: true` and **ask for confirmation before re-running with the bypass**. The bypass is expected for device commands (`account discover`, `receive`, `send`, `genuine-check`, `swap execute`, `earn deposit`, `earn withdraw`, `ring init`); if this error fires on any other command, investigate before bypassing rather than disabling the sandbox by reflex. |
 | `[object Object]` or garbled APDU output                                                              | two device commands running in parallel (contention)                                                                                                   | Run device-touching commands sequentially — never in parallel tool calls.                                                                                                                                                                                                                                                                                                             |
 | `[✖] Ledger not detected. Plug in, unlock, retry.` (exit code 3)                                     | device powered off or unplugged                                                                                                                        | Ask the user to power on the device, unlock it, and connect via USB, then re-run the command.                                                                                                                                                                                                                                                                                         |
 | `device-state … awaiting_approval … reason: unlock` (JSON stream)                                     | device locked                                                                                                                                          | Keep the command running — the CLI resumes automatically once unlocked. Ask the user to unlock the device with their PIN.                                                                                                                                                                                                                                                             |
