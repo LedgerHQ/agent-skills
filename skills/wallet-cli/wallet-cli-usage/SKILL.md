@@ -1,6 +1,6 @@
 ---
 name: wallet-cli-usage
-description: Official Ledger wallet-cli - USB-based CLI for Ledger hardware wallet flows (account discover, receive, balances, operations, send, swap quote/execute/status, genuine-check, assets token / token-by-id) and the Ledger Key Ring (ring init/encrypt/decrypt/keys/destroy — LKRP-backed encryption of files and text). Use for any wallet-cli command execution and for mapping informal requests to the right command.
+description: Official Ledger wallet-cli - USB-based CLI for Ledger hardware wallet flows (account discover, receive, balances, operations, send, swap quote/execute/status, genuine-check, assets token / token-by-id), the Ledger Key Ring (ring init/encrypt/decrypt/keys/destroy — LKRP-backed encryption of files and text), and Agent Intent (agent-intent enroll/recover/list/show/sync/send — enroll or recover a remote agent's software identity, import the Ledger Sync accounts it was granted and propose EVM payments for human review, no device required, never broadcasts, a separate trust model from `ring`). Use for any wallet-cli command execution and for mapping informal requests to the right command.
 ---
 
 # wallet-cli
@@ -13,7 +13,7 @@ Install globally with a user-preferred package manager — `npm i -g @ledgerhq/w
 
 > **Session first:** When invoked without a specific task, **immediately run `session view`** — do not ask the user what to do first. Show the result, then ask what to do next. If labels exist, skip `account discover`.
 
-> **Sandbox:** `account discover`, `receive`, `send`, `genuine-check`, `swap execute`, `ring encrypt`, `ring decrypt`, `ring keys`, `ring destroy` **must** use `dangerouslyDisableSandbox: true` — the first group is blocked by USB restrictions; the ring commands are blocked by OS keychain access restrictions.
+> **Sandbox:** `account discover`, `receive` (without `--no-verify`), `send` (without `--dry-run`), `genuine-check`, `swap execute`, `earn deposit` (without `--dry-run`), `earn withdraw` (without `--dry-run`), `ring init` **must** use `dangerouslyDisableSandbox: true` — these open the device over USB (via the node-webusb DMK transport) and are blocked by USB restrictions. `ring encrypt`, `ring decrypt`, `ring destroy`, `agent-intent enroll`, `agent-intent recover`, `agent-intent sync`, `agent-intent send` (without `--dry-run`) never open the device but **also** need the bypass — they're blocked by OS keychain access restrictions instead (`agent-intent enroll`/`recover` also hold a WebSocket to the Trustchain relay). `ring keys` needs neither, and neither does `agent-intent list`/`show`: they only read the local session file, so they run without the bypass.
 
 > **Device contention:** Never run two device commands in parallel — they fail with `[object Object]` or garbled APDU. Run sequentially.
 
@@ -44,6 +44,12 @@ Map informal phrasings to commands. Account references use a session label (e.g.
 | "encrypt this file / these env vars / publish tokens", "GPG alternative", "secret manager", "decrypt anywhere with my Ledger" | `ring init` -> `ring encrypt --key <name>` / `ring decrypt --key <name>` |
 | "what keys do I have on my ring", "list domains/projects I've encrypted under"       | `ring keys`                                                  |
 | "wipe my key ring", "destroy the ring", "tear down LKRP membership"                 | `ring destroy`                                               |
+| "enroll this agent", "let an agent propose intents", "set up Agent Intent for a bot" | `agent-intent enroll --profile <id> --name <name>` (no device; blocks until approved) |
+| "recover this agent", "re-enroll an agent into its trustchain"                       | `agent-intent recover --profile <id>` (no device; blocks until approved) |
+| "what agents are enrolled", "list agent profiles"                                    | `agent-intent list`                                            |
+| "show me that agent profile", "what's the fingerprint for this agent"                | `agent-intent show --profile <id>`                             |
+| "pull my synced accounts", "import from Ledger Sync", "sync the agent's accounts"   | `agent-intent sync --profile <id>` (no device)                 |
+| "have the agent request a payment", "propose sending X to Y for approval"            | `agent-intent send --profile <id> --account <label> --to <address> --amount '<amount> <ticker>'` (no device, never broadcasts) |
 | "start over", "clear my session", "I switched devices"                              | `session reset`                                              |
 
 ---
@@ -74,7 +80,7 @@ All `--account` flags accept a session label (e.g. `ethereum-1`). Run `account d
 | `session view`       | No     | No           | No          | No      |
 | `session reset`      | No     | No           | No          | No      |
 | `account discover`   | Yes    | **Required** | No          | Yes     |
-| `receive`            | Yes    | **Required** | No          | No      |
+| `receive`            | Yes\*  | **Required** | No          | No      |
 | `send`               | Yes\*  | **Required** | No          | Yes     |
 | `genuine-check`      | Yes    | **Required** | No          | Yes     |
 | `balances`           | No     | No           | No          | Yes     |
@@ -91,10 +97,15 @@ All `--account` flags accept a session label (e.g. `ethereum-1`). Run `account d
 | `ring init`          | Yes    | **Required** | Required‡   | Yes     |
 | `ring encrypt`       | No     | **Required** | No          | Yes     |
 | `ring decrypt`       | No     | **Required** | No          | Yes     |
-| `ring keys`          | No     | **Required** | No          | No      |
+| `ring keys`          | No     | No           | No          | No      |
 | `ring destroy`       | No     | **Required** | Required‡‡  | Yes     |
+| `agent-intent enroll` | No    | **Required** | No          | Yes     |
+| `agent-intent recover` | No   | **Required** | No          | Yes     |
+| `agent-intent list`  | No     | No           | No          | No      |
+| `agent-intent show`  | No     | No           | No          | No      |
+| `agent-intent sync`  | No     | **Required** | No          | Yes     |
 
-\*`send`, `earn deposit`, and `earn withdraw` with `--dry-run` need no device and no sandbox bypass.
+\*`receive` with `--no-verify`, `send` with `--dry-run`, and `earn deposit`/`earn withdraw` with `--dry-run` need no device and no sandbox bypass.
 
 †TTY: whether the command requires an interactive terminal for user input.
 
@@ -167,6 +178,22 @@ Ticker is **mandatory** in `--amount`. No `--token` flag — ticker drives asset
 **Bitcoin flags:** `--fee-per-byte <sats>`, `--rbf`
 
 **Solana flags:** `--mode send|stake.createAccount|stake.delegate|stake.undelegate|stake.withdraw`, `--validator <addr>`, `--stake-account <addr>`, `--memo <text>`
+
+**EVM flags:** `--data <hex>` — raw calldata for contract calls (0x-prefixed hex, even digit count). Use for contract interactions the CLI has no dedicated command for (e.g. WETH wrap/unwrap below). Omit for plain native/token transfers.
+
+#### Contract calls with --data (wrap/unwrap example)
+
+Canonical pattern: WETH wrap/unwrap. `deposit()` (wrap ETH → WETH, no args) is selector `0xd0e30db0`, sent with `--amount` as the ETH value. `withdraw(uint256)` (unwrap WETH → ETH, one `uint256` arg = amount in wei) is selector `0x2e1a7d4d` followed by the amount left-padded to 32 bytes.
+
+```bash
+# wrap 0.5 ETH into WETH
+wallet-cli send ethereum-1 --to <WETH_CONTRACT_ADDRESS> --amount '0.5 ETH' --data 0xd0e30db0
+
+# unwrap 0.5 WETH back to ETH (0.5 ETH = 500000000000000000 wei = 6f05b59d3b20000 hex, padded to 32 bytes)
+wallet-cli send ethereum-1 --to <WETH_CONTRACT_ADDRESS> --amount '0 ETH' --data 0x2e1a7d4d00000000000000000000000000000000000000000000000006f05b59d3b20000
+```
+
+Always run with `--dry-run` first to validate calldata before signing. The CLI cannot verify the semantic correctness of hand-supplied `--data` — the device screen is the last line of defense, so review the decoded call on-device before approving.
 
 ### swap quote
 
@@ -275,6 +302,146 @@ wallet-cli ring destroy
 
 ---
 
+## Agent Intent
+
+> **Separate trust model from `ring`.** The agent is a software-only LKRP member: it joins its own
+> Agent Intent (App-18) Trustchain and is granted access to the user's Ledger Sync (App-16) stream,
+> but it never opens the device and never receives `ring`'s (App-17) domain keys.
+
+Agent Intent enrolls a remote agent (a bot proposing transaction intents for human review) as a
+software identity local to this machine — **no device required for enroll/recover/list/show/sync**. Each
+profile gets its own secp256k1 keypair; the private key never leaves the OS keychain and is never
+printed, logged, or included in any command's output (human or `--output json`).
+
+```bash
+# Create a pending profile, print its signed enrollment URL + fingerprint, then BLOCK until the
+# human approves in the Agent Intent frontend (default environment: production):
+wallet-cli agent-intent enroll --profile my-bot --name "My Bot"
+wallet-cli agent-intent enroll --profile my-bot --name "My Bot" \
+  --environment staging --expires-in 2h
+
+# Re-enroll an enrolled openclaw/hermes profile's existing key into its previous Trustchain, then
+# BLOCK until approved (environment/keycloak come from the profile):
+wallet-cli agent-intent recover --profile my-bot
+
+# List/inspect local profiles (never reveals the secret key):
+wallet-cli agent-intent list
+wallet-cli agent-intent show --profile my-bot
+
+# Import the Ledger Sync accounts the agent was granted into the session (explicit, never automatic):
+wallet-cli agent-intent sync --profile my-bot
+wallet-cli agent-intent sync --profile my-bot --output json
+```
+
+**One blocking command, no copy/paste.** `enroll` prints the URL first (with `--output json`: an
+`enrollment-pending` NDJSON event), then waits on an encrypted Trustchain relay channel bound into the
+signed request. The frontend delivers the completion over that channel; there is no `complete`
+command and no manual JSON fallback. **Keep the process running** until it prints the final
+`enrolled` result (json: `status: "success"`, `enrolled: true`, `trustchainId`,
+`accountAccessEnvironment`). The wait is bounded by `--expires-in` (default 30m).
+
+**Nothing is trusted from the relay alone.** Before saving, `enroll` proves the completion: the agent
+key must obtain an App-18 access token for the claimed Trustchain (Keycloak), and must authenticate
+to the claimed App-16 stream with exactly the expected permission. Only then are `trustchainId` and
+the (non-secret) `accountAccess` references written to the profile.
+
+**On timeout, Ctrl+C, or a failed check** the profile stays `pending` (and later `expired`) and
+cannot be resumed — start a fresh enrollment with a **new** `--profile` id.
+
+**Recovery reuses the same key.** `recover --profile <id>` signs a recovery request for the
+profile's existing key and Trustchain (no new key, `accountAccess` untouched), then waits on the relay
+exactly like `enroll` (json: a `recovery-pending` event, then `status: "success"`, `recovered: true`,
+`trustchainId`). Only enrolled `openclaw`/`hermes` profiles whose keychain key matches the recorded
+public key can be recovered. The completion must name the same agent key, the same signed request
+and the same Trustchain, and the agent key must obtain an App-18 token for it (App-16 is not
+re-checked). While it waits, `list`/`show` report `recovering`; on timeout, Ctrl+C, or a failed
+check the marker is cleared and the profile stays `enrolled` with its previous data — re-run
+`recover` to retry.
+
+**Fingerprint is the safety check.** `enroll` prints a public-key fingerprint alongside the
+enrollment URL, and `show` prints the same fingerprint for any profile afterwards — compare it
+against what the Agent Intent frontend/device displays before approving. A mismatched fingerprint
+means the enrollment request was tampered with or sent to the wrong agent.
+
+**Duplicate protection:** `enroll` refuses to reuse a `--profile` id already recorded in the session,
+and separately refuses if a keychain entry for that id exists without a matching session record
+(an inconsistent state you must clear manually before re-enrolling under the same id).
+
+**Keychain required:** `enroll` needs a working OS keychain — macOS Keychain, Windows Credential
+Manager, or on Linux a running Secret Service provider (e.g. gnome-keyring or KeePassXC) with an
+unlocked collection. Without one (headless Linux, containers, some CI runners) `enroll` fails with
+`Could not store the agent's secret key in the OS keychain (…)` and saves nothing — fix the keychain
+and re-run the same command; there is no file-based fallback by design.
+
+**Environment isolation:** each profile records the environment (`staging`/`production`) it was
+enrolled against. A completion whose `accountAccess.environment` doesn't match is rejected, so a
+profile enrolled for staging can never end up holding a production Trustchain ID. `--bff-url` and
+`--keycloak-url` override that environment's defaults (http(s) only, no `user:pass@`).
+
+**Status is derived, not stored:** `list`/`show` compute `pending` / `enrolled` / `recovering` /
+`expired` from `trustchainId`, `enrollmentExpiresAt` and any unexpired recovery marker, and show the granted account access (environment +
+App-16 application path) once enrolled.
+
+### Syncing Ledger Sync accounts
+
+`agent-intent sync --profile <id>` imports the accounts synchronized from your other Ledger Wallet
+instances (desktop, mobile) so they can be referenced by label. It authenticates with the **agent's
+own key** (from the OS keychain), which the frontend added to the App-16 stream at enrollment — it
+never opens the device and there is no separate Ledger Sync enrollment. The environment comes from
+the profile's `accountAccess`.
+
+- **Requires an enrolled profile:** a `pending`/`expired` profile (no `accountAccess`) or a missing
+  keychain key fails with a clear error.
+- **Lost access is reported, not repaired:** if the agent was removed from Ledger Sync, `sync`
+  reports "no longer has Ledger Sync access" and deletes nothing.
+- **Key rotation is followed:** if Ledger Sync rotated its key (a member was removed), the profile's
+  `accountAccess` is updated to the new application path and the sync proceeds.
+- **Additive and idempotent:** never deletes or re-labels a session account and never uploads
+  anything; a repeat run reports `unchanged` entries or "Up to date".
+- **Unsupported/malformed entries are isolated:** an account for a currency family wallet-cli
+  doesn't support (only bitcoin/evm/solana) is `skipped`, a malformed one is `invalid` — the rest of
+  the import still proceeds, and an `invalid` entry keeps the next sync from treating the data as
+  up to date.
+
+### Proposing a payment (`agent-intent send`)
+
+`agent-intent send` **proposes** an Ethereum send for a human to review — it never signs or
+broadcasts anything and needs no device. It signs the proposal with the profile's key, submits it
+to the Agent Intent service, and prints a review link; the payment only happens if a human opens
+that link and approves it on their Ledger device.
+
+```bash
+# Native ETH, sender from a session label:
+wallet-cli agent-intent send --profile my-bot --account ethereum-1 \
+  --to 0xRecipient --amount '0.01 ETH' --description "Invoice #42"
+
+# ERC-20: pass the token contract; the ticker in --amount must match it:
+wallet-cli agent-intent send --profile my-bot --from 0xSender \
+  --to 0xRecipient --amount '25 USDC' --token 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+
+# Validate everything and print the proposal without submitting (no keychain, no sign-in):
+wallet-cli agent-intent send --profile my-bot --account ethereum-1 \
+  --to 0xRecipient --amount '0.01 ETH' --dry-run
+```
+
+- **Enrolled profile only** (its `agent-intent enroll` approval went through). It uses the
+  profile's environment, the BFF and Keycloak URLs recorded at enroll time (so an enroll-time
+  `--bff-url`/`--keycloak-url` override carries over), and its key in the OS keychain.
+- **Ethereum mainnet only**, for both a `--account` label and a `--from` address. The Agent Intent
+  SDK has no testnet, so a staging profile also proposes an Ethereum mainnet transfer.
+- **Addresses:** `--from`, `--to` and `--token` must be `0x` + 40 hex characters. Mixed-case input
+  must pass its EIP-55 checksum, which catches a typo in a copied address.
+- **Amounts are exact and never rounded.** More decimals than the asset has, zero, or an amount
+  above uint256 is an error. JSON output gives `amount` in base units as a string.
+- **`--fee-strategy slow|medium|fast`** (default `medium`) is the fee level the human is asked to
+  approve. wallet-cli doesn't check the sender's balance; the human reviewing the intent is
+  responsible for that.
+- **Don't retry blindly.** If the service accepted the request (a timeout, or an unreadable link),
+  the intent may already exist. Check the frontend before re-running, or you'll propose a duplicate.
+  A service rejection is explained with a next step (for example, re-enroll after an issuer mismatch).
+
+---
+
 ## earn (staking & DeFi yield)
 
 Earn covers two flows: **Ethereum** ERC-4626 DeFi vaults (deposit/redeem) and **Solana** native staking (delegate/undelegate). `yields` and `positions` are read-only (no device); `deposit` and `withdraw` sign on the device.
@@ -355,7 +522,7 @@ Get the Solana `--stake-account` address from `earn positions <account>` (its `s
 | `[✖] Wrong app. Open Ledger dashboard.` (exit code 4)                                                | `genuine-check` invoked while a currency app is open. Unlike other device commands, `genuine-check` targets the dashboard and has no auto-launch path. | Ask the user to exit the foreground app on the device (short-press both buttons on the app's main screen until `Quit` shows, then confirm), then re-run `genuine-check`. Other device commands (`account discover`, `receive`, `send`, `swap execute`) don't hit this — they auto-prompt the correct app launch.                                                                      |
 | `[✖] Rejected on device. No action taken.`                                                           | user rejected a sign request on device                                                                                                                 | The rejection was deliberate. **Ask the user whether to retry or abort** — do not auto-retry. If they retry, have them review amount, recipient, and fees on the device screen before approving.                                                                                                                                                                                      |
 | `[✖] Rejected on device. App was not opened.`                                                        | user rejected the app-open prompt on device                                                                                                            | Ask the user to confirm the app-open prompt on the device and re-run the command.                                                                                                                                                                                                                                                                                                     |
-| `[✖] Timed out talking to the Ledger over USB. The device may be busy or locked. Retry the command.` | sandbox blocking USB, or device busy/locked                                                                                                            | Surface to the user that the command needs `dangerouslyDisableSandbox: true` and **ask for confirmation before re-running with the bypass**. The bypass is expected for device commands (`account discover`, `receive`, `send`, `genuine-check`, `swap execute`); if this error fires on any other command, investigate before bypassing rather than disabling the sandbox by reflex. |
+| `[✖] Timed out talking to the Ledger over USB. The device may be busy or locked. Retry the command.` | sandbox blocking USB, or device busy/locked                                                                                                            | Surface to the user that the command needs `dangerouslyDisableSandbox: true` and **ask for confirmation before re-running with the bypass**. The bypass is expected for device commands (`account discover`, `receive`, `send`, `genuine-check`, `swap execute`, `earn deposit`, `earn withdraw`, `ring init`); if this error fires on any other command, investigate before bypassing rather than disabling the sandbox by reflex. |
 | `[object Object]` or garbled APDU output                                                              | two device commands running in parallel (contention)                                                                                                   | Run device-touching commands sequentially — never in parallel tool calls.                                                                                                                                                                                                                                                                                                             |
 | `[✖] Ledger not detected. Plug in, unlock, retry.` (exit code 3)                                     | device powered off or unplugged                                                                                                                        | Ask the user to power on the device, unlock it, and connect via USB, then re-run the command.                                                                                                                                                                                                                                                                                         |
 | `device-state … awaiting_approval … reason: unlock` (JSON stream)                                     | device locked                                                                                                                                          | Keep the command running — the CLI resumes automatically once unlocked. Ask the user to unlock the device with their PIN.                                                                                                                                                                                                                                                             |
