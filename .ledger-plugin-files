@@ -1,0 +1,9 @@
+.agents/plugins/marketplace.json
+.claude-plugin/marketplace.json
+.claude-plugin/plugin.json
+.cursor-plugin/plugin.json
+CHANGELOG.md
+openclaw.extension.mjs
+openclaw.plugin.json
+package.json
+plugin.json
