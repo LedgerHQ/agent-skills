@@ -1,0 +1,12 @@
+{
+  "name": "ledger",
+  "private": true,
+  "description": "Ledger wallet-cli skill for AI agents: run Ledger hardware-wallet flows from the terminal, and enroll as an Agent Intent agent that imports Ledger Sync accounts and proposes payments that a human approves on their Ledger device.",
+  "version": "3.2.0",
+  "author": "Ledger",
+  "openclaw": {
+    "extensions": [
+      "./openclaw.extension.mjs"
+    ]
+  }
+}
