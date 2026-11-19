@@ -40,7 +40,7 @@ Every command that reads a `plaintext-file` key prints `⚠ Profile "<id>" store
 
 **Existing profiles.** When a command reading an existing profile fails with `keychain_unavailable`, the machine has a keychain that this session cannot reach (e.g. SSH, cron or a sandbox without the desktop session's D-Bus bus). Ask the human to run the command from the session that enrolled the profile, or to make that Secret Service reachable here (the message names `DBUS_SESSION_BUS_ADDRESS`). When neither is possible, the profile is unusable from this session, and a new profile made here could keep its key only in a key file. Before enrolling anew, tell the human that their keychain exists but this session can't reach it, that the new agent joins their Ledger Sync next to the old one, and that its key would be stored unencrypted on this machine; enroll under a new id (step 3) with `--allow-plaintext-key` only after their explicit yes to that in the current conversation. The question in item 3 is for a machine with no keychain at all.
 
-**State dir.** `$XDG_STATE_HOME/ledger-wallet-cli`, default `~/.local/state/ledger-wallet-cli` (Windows: `%LOCALAPPDATA%\ledger-wallet-cli\State`), holds `session.yaml` and the `agent-intent-keys/` key files, and the keychain entry name hashes its path. Keep that path and the OS user the same across runs; a different path or user cannot find the key. Profiles never move between machines.
+**State dir.** `$XDG_STATE_HOME/ledger-wallet-cli`, default `~/.local/state/ledger-wallet-cli` (Windows: `%LOCALAPPDATA%\ledger-wallet-cli\State`), holds `session.yaml` and the `agent-intent-keys/` key files, and the keychain entry name hashes its path. Keep that path and the OS user the same across runs; a different path or user cannot find the key. Profiles never move between machines. Keep it on persistent storage: if `session.yaml` is lost, the profile is gone and `recover` cannot bring it back. When `enroll` warns on stderr that profiles `are saved in` a folder `which is temporary storage`, tell the human before they approve, so they can point the variable it names (`XDG_STATE_HOME`, or `LOCALAPPDATA` on Windows) at a persistent folder and enroll again.
 
 ## 3. Pick a fresh profile id
 
@@ -48,7 +48,7 @@ The id matches `^[a-zA-Z0-9][a-zA-Z0-9._-]{0,62}$` and must not appear in `list`
 
 ## 4. Enroll
 
-`enroll` prints the link at once, then waits until the human approves or the link expires. A terminal tool returns a command's output only when the command exits, so a foreground `enroll` hands you the link after it has expired. An `enroll` that ends before approval loses the enrollment: the profile shows `pending` until its link expires, then `expired`, and neither can be resumed. So the waiting always runs in the background. On Linux and macOS, `--detach` hands it to a **background listener** and exits. Windows refuses `--detach`: there, run the command without it as a background job (below). Either way, `wait` (step 5) reports on it.
+`enroll` prints the link at once, then waits until the human approves or the link expires. A terminal tool returns a command's output only when the command exits, so a foreground `enroll` hands you the link after it has expired. An `enroll` that ends before approval loses the enrollment: the profile shows `pending` until its link expires, then `expired`, and neither can be resumed. So the waiting always runs in the background. `--detach` hands it to a **background listener** and exits. Some hosts stop that listener when the command ends, so check that it survived before you hand over anything (below); on such a host, run the command without `--detach` as a background job (below). Either way, `wait` (step 5) reports on it.
 
 ```bash
 wallet-cli agent-intent enroll --profile <id> --name "<display name>" --source <source> --detach --output json
@@ -68,9 +68,19 @@ wallet-cli agent-intent enroll --profile <id> --name "<display name>" --source <
 - `type` `"enrollment-pending"` with `enrollmentUrl`, `fingerprint`, `expiresAt`, `keyStore`, `listenerPid` and `logPath`;
 - `type` `"enrollment-waiting"` with `profileId`, `listenerPid` and `logPath` but no link yet: the listener is still starting, e.g. at an OS keychain unlock prompt. If such a prompt is showing, ask the human to answer it; until they do, other wallet-cli commands that change local state may fail with a lock timeout. A profile still at that prompt does not show in `list`, so remember its id: before enrolling under a new id, run `wait` (step 5) on this one.
 
-Done when you have the `enrollment-pending` line, or the `enrollment-waiting` line and then the link from `wait` (step 5). When `enroll` fails instead, match its error in the error table (step 12).
+**Check that the listener survived.** Right after `enroll --detach` returns, and before you send the human anything, run `wait` with the same host sandbox setting:
 
-**Background job** (`enroll` on Windows, and every `recover`). Start the command without `--detach` as a background job of your terminal tool, read the pending event from the job's output while it runs, and leave the job running through the handoff (step 5; for `recover`, step 10). On a terminal tool without background jobs, tell the human that this enrollment or recovery cannot be completed from this host; every other `agent-intent` command still runs there. Below, `<cmd>` is `enroll` or `recover`. The job's status and its stop come from your tool:
+```bash
+wallet-cli agent-intent wait --profile <id> --timeout 2s --output json
+```
+
+- `type` `"enrollment-waiting"`: the listener is running; go on.
+- `ok: false` with `error.code` `listener_exited` or `profile_not_found`: the host stopped the listener when `enroll` returned. Never send that link: the human could still approve it, which adds the agent to their Ledger Sync with nothing left to receive the approval. The id is burned: pick a new one (step 3) and enroll as a background job (below).
+- any other error: error table (step 12).
+
+Done when that check reports `enrollment-waiting` and you have the link: from the `enrollment-pending` line, or from `wait` (step 5) after an `enrollment-waiting` line. When `enroll` fails instead, match its error in the error table (step 12).
+
+**Background job** (`enroll` on a host that stops the `--detach` listener, and every `recover`). Start the command without `--detach` as a background job of your terminal tool, read the pending event from the job's output while it runs, and leave the job running through the handoff (step 5; for `recover`, step 10). On a terminal tool without background jobs, tell the human that this enrollment or recovery cannot be completed from this host; every other `agent-intent` command still runs there. Below, `<cmd>` is `enroll` or `recover`. The job's status and its stop come from your tool:
 
 - OpenClaw: `exec` returns a running handle with the output so far after `yieldMs` (10 s by default); `process poll` reads more. The job dies at `tools.exec.timeoutSeconds` (1800 s by default), so pass an `--expires-in` below it, e.g. `25m`.
 - Claude Code: Bash with `run_in_background`, then read the job's output.
@@ -105,7 +115,7 @@ wallet-cli agent-intent wait --profile <id> --output json
 
 - `status` `"success"` with `enrolled: true`: final, see Done below.
 - `type` `"enrollment-waiting"` without `enrollmentUrl` and without `expiresAt`: the listener has no link yet (e.g. an OS keychain prompt is still open). Keep calling `wait`, which returns as soon as the link appears, and do not end your turn: hand over the link as above once `wait` reports it with `fingerprint`, `expiresAt` and `keyStore`.
-- `type` `"enrollment-waiting"` with `expiresAt` but without `enrollmentUrl`: a background-job `enroll` (Windows), whose link is in the job's output, never in `wait`'s. Handle it as the next item.
+- `type` `"enrollment-waiting"` with `expiresAt` but without `enrollmentUrl`: a background-job `enroll`, whose link is in the job's output, never in `wait`'s. Handle it as the next item.
 - `type` `"enrollment-waiting"` with `enrollmentUrl` (also `expiresAt`, `fingerprint`, `keyStore`, `listenerPid`): still pending. Run `wait` again for at most about 2 minutes in this turn, then end your turn and ask the human to reply once both approvals finish; run `wait` when they do. If it still reports `enrollment-waiting` after they say they approved, ask them what the page shows.
 - `ok: false` with `error.code` `listener_exited`, `listener_stuck`, `enrollment_expired` or `profile_not_found`: final, the enrollment is lost; error table.
 - `ok: false` with an error the listener logged before saving the profile (e.g. `keychain_unavailable` after the human denied a keychain prompt): handle it like the same error from `enroll`.
@@ -138,7 +148,7 @@ All four empty means nothing changed since the last sync.
 - **Retries:** while any entry is `invalid`, the synced version is not cached, so the next sync fetches the list again.
 - **After a wallet-cli upgrade:** when the upgrade can import more (a new family, currency or derivation mode), the next sync pulls every account again, so a `skipped` entry that the new version supports is imported then.
 - **Skipped ids can hold secrets.** An `id` is the account's raw Ledger Wallet id, and some families embed key material in it (Aleo ids carry the account's view key). Report `skipped` and `invalid` entries as a count per distinct `reason`, working only from `reason`; keep `id` and the raw output out of chat and logs.
-- **After `session reset`:** the reset deletes the imported labels but keeps the profile and its cached sync version, so `sync` reports four empty arrays until the list changes in Ledger Wallet. Tell the human; `--from <address>` still works.
+- **After `session reset`:** the reset deletes the imported labels and the cached sync version but keeps the profile, so the next `sync` pulls every account again.
 
 Done when you have reported every imported and unchanged label with its network, and the skipped and invalid entries as the rule above says.
 
@@ -155,7 +165,7 @@ Done when you have reported every imported and unchanged label with its network,
 - **Solana addresses** (`--from`, `--to`, `--token`): base58, 32 bytes.
 - **Amount:** `--amount '<n> <TICKER>'`, exact. More decimals than the asset has, zero, or a value above uint256 (Ethereum) or u64 (Solana) is an error; ask the human, never round.
 - **Tokens:** add `--token <contract or mint>`; the ticker in `--amount` must be that token's ticker. wallet-cli looks the token up as `wallet-cli assets token ethereum|solana <address>` does. A Token-2022 mint is refused: Agent Intent sends classic SPL tokens only.
-- **Ticker only** ("pay 20 USDC"): leave out `--token`. wallet-cli picks the one listed token with that ticker the `--account` holds (it reads the account's tokens; with `--from`, or when the account can't be read, it skips this), else the one token with that ticker in the Crypto Assets List, and names the address it picked on stderr. That address is a built value: dry-run first and show it (SKILL.md, Safety rules). Several matches is an error listing the candidates, and no match is an error too: ask the human which token they meant, and pass it as `--token`. Tickers match case-sensitively: type mixed-case ones as listed (`USDe`, `stETH`).
+- **Ticker only** ("pay 20 USDC"): leave out `--token`. wallet-cli picks the one listed token with that ticker the `--account` holds (it reads the account's tokens; with `--from`, or when the account can't be read, it skips this), else the one token with that ticker in the Crypto Assets List, and names the address it picked on stderr. That address is a built value: dry-run first and show it (SKILL.md, Safety rules). Several matches is an error listing the candidates, and no match is an error too: ask the human which token they meant, and pass it as `--token`. `send` doesn't refuse another chain's coin: `1 BTC` from an Ethereum account picks the ERC-20 token CAL lists under BTC, not bitcoin, so check the name on stderr against what the human asked for.
 - **Ethereum only:** `--fee-strategy slow|medium|fast` (default `medium`).
 - **Solana only:** `--memo "<1 to 280 characters>"`, carried on chain with the transfer and public once the human approves: pass it only with text the human gave you. The service sets the Solana fee, so `--fee-strategy` is refused there.
 - **Optional:** `--description "<1 to 280 characters>"` shown to the reviewer: write it yourself from the human's request. In `--memo` and `--description` an emoji counts as two characters; keep account data and secrets out of both.
@@ -176,18 +186,19 @@ wallet-cli does not check the sender's balance. The human reviews the intent and
 
 `agent-intent swap` proposes a swap between ETH and ERC-20 tokens on Ethereum mainnet only. It quotes the swap, then signs the pair, the amounts and the provider of the best quote the Agent Intent frontend can prepare; when the human opens the review link, the frontend fetches a fresh quote and builds the transaction.
 
-- **Assets:** `--from` (sold) and `--to` (bought) take Ledger currency ids: `ethereum`, or an ERC-20 id such as `ethereum/erc20/usd__coin`, which `wallet-cli assets token ethereum <contract> --output json` prints as `id`.
+- **Assets:** `--from` (sold) and `--to` (bought) take a ticker (`ETH`, `USDC`), a Ledger currency id (`ethereum`, `ethereum/erc20/usd__coin`) or an ERC-20 contract address. A ticker of another chain's coin is refused, and an ambiguous or unknown ticker is an error listing candidates; ask the human and pass the currency id they meant.
+- **Check the token picked** before relaying the review link. For a ticker, stderr names the currency id, name and contract picked, a built value: dry-run first and show it (SKILL.md, Safety rules). The refusal only knows the coins in Ledger's currency list, so the ticker of any other coin still resolves to the one ERC-20 token CAL lists under it: `--to TIA` buys `ethereum/erc20/tia_token` ("Tia Token"), not Celestia. If the name or contract on stderr isn't what the human asked for, cancel the intent (step 9) and pass the currency id of the token meant, or tell the human it can't be swapped on Ethereum.
 - **Sender:** `--sender <0x address>`, picked as in step 7, Sender (Ethereum candidates), or `--account <label>` with a candidate's label.
 - **Amount:** `--amount <n>` in human units of the sold asset, without a ticker (`0.5` for 0.5 ETH, `1000` for 1000 USDC), exact. More decimals than the asset has, zero, a sign or an exponent is an error; ask the human, never round.
 - **Expected amount:** the quote's receive amount, rounded down to the bought asset's precision. `--to-amount <n>` signs the human's own figure instead (the swap is still quoted, to pick a provider): pass it only with a figure the human typed. Dry-run without it first, show the quoted `toAmount` next to their figure, and on their confirmation run for real with `--to-amount`. A figure more than 5% above the quote prints `⚠ --to-amount … above the … quote` on stderr: tell the human the reviewer sees a fresh quote, with their figure shown only as the proposal it replaced.
-- **Provider:** the best quote among `oneinch`, `velora`, `okx` and `lifi`, the providers the frontend can prepare; `--provider <name>` quotes only that one. A quote that needs a Permit2 signature is skipped, and so is one whose token approval the frontend can't send: an approval of another token than the one sold, or USDT with an allowance left or not reported.
+- **Provider:** the best quote among `oneinch`, `velora`, `okx` and `lifi`, the providers the frontend can prepare; `--provider <name>` quotes only that one. A quote that needs a Permit2 signature is skipped, and so is one whose token approval the Agent Intent SDK rules refuse: an approval of another token than the one sold, to the zero address or with malformed `approve` calldata, USDT with an allowance left or not reported, or a `oneinch`, `velora` or `okx` quote the Swap API doesn't mark as a DEX quote.
 - **Token approval:** the best quote is kept when the sold token needs an approval the frontend can send. The output has `needsTokenApproval` `true` and stderr says so; tell the human they approve the token first in the Agent Intent frontend, in a separate transaction with its own network fee, then review the swap.
 - **Optional:** `--description`, as in step 7.
 
 **Dry run when you built the transaction** (SKILL.md, Safety rules). When the rule applies, run with `--dry-run` first: it quotes and validates, and submits nothing (no agent key, no sign-in).
 
 ```bash
-wallet-cli agent-intent swap --profile <id> --sender <sender> --from <currency id> --to <currency id> --amount <n> --dry-run --output json
+wallet-cli agent-intent swap --profile <id> --sender <sender> --from <ticker, currency id or contract> --to <ticker, currency id or contract> --amount <n> --dry-run --output json
 ```
 
 Show the human the summary (`sender`, `from.ticker`, `to.ticker`, `fromAmount`, `toAmount`, `provider`, and the approval step when `needsTokenApproval` is `true`) and get their confirmation, then run the same command without `--dry-run`. Each run quotes again, so give the human the `toAmount` and `provider` of the real run with its link. When the rule does not apply, run it without `--dry-run` directly. Note the time before every run without `--dry-run`, as in step 7.
@@ -261,15 +272,14 @@ Messages are substrings of the CLI output; a `code` row matches `error.code`. Th
 
 | Message | Cause | Action |
 |---|---|---|
-| code `listener_exited` (from `wait`) | the listener ended before the approval arrived; the message gives its last error, then ends with `Log: <path>.` Causes: the human left the page after Review (`Enrollment relay closed`), the host killed background processes, a reboot | the enrollment is lost: step 2, new id. If the human had approved, tell them the agent stays on their Ledger Sync. When it recurs at once, the host kills background processes: tell the human enrollment cannot be completed from this host |
+| code `listener_exited` (from `wait`) | the listener ended before the approval arrived; the message gives its last error, then ends with `Log: <path>.` Causes: the human left the page after Review (`Enrollment relay closed`), the host killed background processes, a reboot | the enrollment is lost: step 2, new id. If the human had approved, tell them the agent stays on their Ledger Sync. When it comes from the check right after `enroll --detach`, or recurs at once, the host kills background processes: enroll under a new id as a background job (step 4); on a host without background jobs, tell the human enrollment cannot be completed from this host |
 | code `listener_stuck` (from `wait`) | a live listener has not saved the profile within 10 minutes, e.g. a keychain unlock prompt answered too late; the key was removed and nothing was saved | step 2, new id |
 | code `enrollment_expired` (from `wait`) | the link expired without an approval (also a keychain unlock prompt answered too late) | step 2, new id |
 | code `profile_not_found` (from `wait`) | no profile with that id in this machine's state dir | check the id with step 1; otherwise step 2, new id |
 | `An enrollment listener for profile ... is already running` | `enroll --detach` on a profile whose listener still waits | step 5, `wait` on that profile |
 | `The enrollment listener ... before printing its first event` / `did not start` / `printed an unexpected first line` | the `--detach` listener failed to start; the log path is in the message | report the message to the human; step 1: an id missing from `list` is still free, so re-run the same `enroll`, otherwise step 3 |
-| `--detach is not supported on Windows` | Windows | step 4, Background job |
 | the enrollment page says "Agent link not valid" | the URL was damaged on the way, has expired, is for another environment or comes from an outdated CLI; the sentence under it says which | step 5, Relay the URL whole |
-| the enrollment page says "This agent source is not supported" | the frontend does not accept that `--source` | the id is burned (Windows: stop the `enroll` job). Tell the human the frontend refused source `<source>`; enroll again only under the source you run in, when the human asks |
+| the enrollment page says "This agent source is not supported" | the frontend does not accept that `--source` | the id is burned (a background-job `enroll`: stop the job). Tell the human the frontend refused source `<source>`; enroll again only under the source you run in, when the human asks |
 | `Profile id must contain only letters, numbers, dots, underscores, and dashes` | bad `--profile` | pick an id per step 3 |
 | `already exists. Choose a different --profile id` | id already in the session | step 3 |
 | `has an invalid Agent Intent record for profile` / `failed to load (invalid session record)` | broken record in `session.yaml` | tell the human; use a new id (step 3) |
@@ -302,12 +312,13 @@ Messages are substrings of the CLI output; a `code` row matches `error.code`. Th
 | `must be an amount and a ticker` / `is not a plain decimal number` / `decimal places, but` / `must be greater than zero` / `too large to represent` / `must not exceed u64::MAX` | bad `send --amount` | ask the human; never round |
 | `is not a positive decimal amount such as` / `decimal places, the precision of` | bad `swap --amount` or `--to-amount` | ask the human; never round |
 | `--amount is in ... but` | ticker and `--token` disagree | fix the ticker or `--token` with the human |
-| `holds several ... with the ticker` / `Several ... have the ticker` / `has the ticker ... in the Crypto Assets List` | without `--token`, the ticker matches several tokens or none | ask the human which token they meant; pass it as `--token` |
+| `holds several ... with the ticker` / `Several ... have the ticker` / `has the ticker ... in the Crypto Assets List` | a `send` ticker without `--token`, or a `swap` ticker, matches several tokens or none | ask the human which token they meant; pass it as `--token` (`send`) or by its currency id (`swap`) |
 | `is a native ... send. To send a token with that ticker` | `ETH` or `SOL` from an `--account` on the other network | ask the human; a token with that ticker needs `--token` |
 | `is not a known ERC-20 token on Ethereum mainnet` / `is not a known SPL token on Solana mainnet` | contract or mint unknown on mainnet | check it with `wallet-cli assets token ethereum\|solana <address>` |
 | `is a Token-2022 mint` / `isn't a mint of the SPL Token program` | not a classic SPL token | tell the human Agent Intent cannot send this token |
 | `--fee-strategy is Ethereum only` / `--memo is Solana only` | flag for the other network | drop the flag |
-| `is not ethereum or an ERC-20 token on Ethereum mainnet` | `swap --from` or `--to` is not an Ethereum currency id | look the id up with `wallet-cli assets token ethereum <contract>` |
+| `is not ethereum or an ERC-20 token on Ethereum mainnet` | `swap --from` or `--to` is a currency id of another network, or a contract CAL doesn't know on Ethereum | look the id up with `wallet-cli assets token ethereum <contract>` |
+| `another chain's coin, not an asset on` | `swap --from` or `--to` names the coin of another chain | tell the human it can't be swapped on Ethereum; if they meant a token the message lists, pass its currency id |
 | `--from and --to are the same asset` | nothing to swap | ask the human which assets they meant |
 | `can't be reviewed in the Agent Intent frontend yet` | `--provider` outside the supported four | `oneinch`, `velora`, `okx` or `lifi`, or leave `--provider` out |
 | `Every quote needs a Permit2 signature or a token approval the Agent Intent frontend can't send` | no quote the frontend can prepare: a Permit2 signature, an approval of another token, or a USDT allowance that must first be reset to 0 | tell the human: approve or reset the allowance outside Agent Intent (e.g. in Ledger Wallet), or try another `--provider` |
